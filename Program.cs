@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace PrinterNamesCLI
 {
@@ -55,6 +56,9 @@ namespace PrinterNamesCLI
                 }
             }
 
+            Process.Start("control", "/name Microsoft.DevicesAndPrinters");
+
+            Console.WriteLine("1. If the printer is still in the Control Panel, please remove the printer manually. \n2. Remember that if you are trying to completely remove the driver from the system \nso that it does not automatically reinstall when the printer or a printer with the same model is plugged back in, \nthen you will need to manually remove the driver from the Print Server Properties.\n3. This is meant for QUICK removal and to demonstrate that printer removal can be automated.");
             Console.WriteLine("Operation complete. Press any key to exit...");
             Console.ReadKey();
         }
