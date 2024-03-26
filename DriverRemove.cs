@@ -1,7 +1,9 @@
-﻿using System;
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace PrinterNamesCLI
 {
@@ -13,6 +15,14 @@ namespace PrinterNamesCLI
         public static void RemovePrinterDriver(string driverName)
         {
             Console.WriteLine($"Attempting to delete printer driver with name: '{driverName}'");
+            if (!AttemptRemoveDriver(driverName))
+            {
+                HandleError3001(driverName);
+            }
+        }
+
+        private static bool AttemptRemoveDriver(string driverName)
+        {
             string pName = null; // Null for the local machine
             string pEnvironment = "Windows x64"; // Assuming most systems; adjust as needed
 
@@ -21,27 +31,56 @@ namespace PrinterNamesCLI
             {
                 int error = Marshal.GetLastWin32Error();
                 Console.WriteLine($"Failed to delete printer driver '{driverName}'. Error code: {error}");
+                return error != 3001;
             }
             else
             {
                 Console.WriteLine($"Printer driver '{driverName}' deleted successfully.");
+                return true;
             }
         }
 
-        public static void RemoveDriverPackage(string infFileName)
+        private static void HandleError3001(string driverName)
         {
-            var driversBeforeRemoval = GetDriverPackageList();
-            Utilities.RunCommand($"pnputil /delete-driver {infFileName} /uninstall /force");
-            var driversAfterRemoval = GetDriverPackageList();
+            Console.WriteLine("Please wait.. Restarting spooler and testing again..");
+            Utilities.RunCommand("net stop spooler && net start spooler");
 
-            if (!driversAfterRemoval.Contains(infFileName) && driversBeforeRemoval.Contains(infFileName))
+            // Wait for 10 seconds
+            Thread.Sleep(10000);
+
+            // Retry the removal
+            if (!AttemptRemoveDriver(driverName))
             {
-                Console.WriteLine($"Driver package {infFileName} removed successfully.");
+                Console.WriteLine("Failed to remove the printer driver after retrying.");
             }
-            else
+        }
+
+        public static void RemoveDriverPackage(string driverName)
+        {
+            // Find the .inf filename associated with the driver name
+            string infFileName = FindDriverInfFilename(driverName);
+            if (string.IsNullOrEmpty(infFileName))
             {
-                Console.WriteLine($"Failed to remove driver package {infFileName} or it was not present.");
+                Console.WriteLine($"Could not find the .inf file for driver '{driverName}'.");
+                return;
             }
+
+            Console.WriteLine($"Attempting to remove driver package with .inf file: {infFileName}...");
+
+            // Call PowerShell script to remove the driver package
+            var scriptPath = Utilities.CombinePathWithExecutable("RemoveDriverPackage.ps1");
+            var arguments = $"-infFileName \"{infFileName}\"";
+            Utilities.RunScript(scriptPath, arguments);
+
+            Console.WriteLine($"Attempted to remove driver package for '{driverName}'.");
+        }
+
+        private static string FindDriverInfFilename(string driverName)
+        {
+            // Implementation to find the .inf filename
+            // This logic needs to be implemented based on your environment and how the drivers are listed
+            // For now, this is a placeholder
+            return "";
         }
 
         private static List<string> GetDriverPackageList()
